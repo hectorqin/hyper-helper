@@ -1,0 +1,23 @@
+{
+  "name": "hyper-helper",
+  "version": "1.0.0",
+  "description": "Some Helper Plugin for Hyper",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": "hectorqin/hyper-helper",
+  "author": {
+    "name": "hectorqin",
+    "email": "hectorqin@163.com"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "hyper",
+    "hyperterm",
+    "hyper-helper"
+  ],
+  "dependencies": {
+
+  }
+}
