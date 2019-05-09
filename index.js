@@ -47,8 +47,9 @@ let _win
 let SSHConnectSessions = {}
 
 let pluginConfig = {
-    scpHelperDisable: true,
-    defaultSelectPath: '~',
+    enableSCPHelper: false,
+    defaultSendPath: '~',
+    defaultReceivePath: '~/Downloads',
     aliasSendCommand: "fs",
     aliasReceiveCommand: "js",
     sendCommand: "scp_send",
@@ -56,7 +57,7 @@ let pluginConfig = {
     sshConnectTime: 1000,
     injectCommand: true,
     injectFuncName: "scp_inject_func",
-    defaultInteraction: false,
+    defaultInteraction: true,
     debugLog: true,
     maxMatchLength: 500,
     matchSSHConnect: (data) => {
@@ -99,12 +100,12 @@ const refreshConfig = (config) => {
 }
 
 const matchPTYData = (action) => {
-    if (pluginConfig.scpHelperDisable) return
+    if (!pluginConfig.enableSCPHelper) return
     // 字符太长，就不匹配了，影响性能
     if (action.data.length > pluginConfig.maxMatchLength) return
     if (!SSHConnectSessions[action.uid]) {
         let result = pluginConfig.matchSSHConnect(action.data, debugLogger)
-        if (result) {
+        if (result && Array.isArray(result)) {
             setTimeout(() => {
                 exec(`ssh -p ${result[2]} ${result[0]}@${result[1]} "echo \\$HOSTNAME"`, (err, stdout) => {
                     debugLogger("error", err);
@@ -138,8 +139,8 @@ const matchPTYData = (action) => {
             return
         }
         // match sendCommand receiveCommand
-        let sendRegex = new RegExp("^'" + pluginConfig.sendCommand + "' (.+)")
-        let receiveRegex = new RegExp("^'" + pluginConfig.receiveCommand + "' (.+)")
+        let sendRegex = new RegExp("'" + pluginConfig.sendCommand + "' (.+)")
+        let receiveRegex = new RegExp("'" + pluginConfig.receiveCommand + "' (.+)")
         // 只取前3条进行匹配
         let lines = data.split("\n", 3)
         debugLogger("match lines", lines)
@@ -165,7 +166,7 @@ const matchPTYData = (action) => {
 
 const injectCommandToServer = (termID) => {
     debugLogger('injectCommandToServer')
-    let helpCMD = `printf '\\nUsage:\\n${pluginConfig.aliasSendCommand} [localhost:]file1 ... [-d [remoteserver:]path]\\n${pluginConfig.aliasReceiveCommand} [remoteserver:]file1 ... [-d [localhost:]path]\\n\\nOptions:\\n-d  The destination in localhost or remoteserver.It can be absolute path or relative to your pwd.\\n-i  Open the file dialog to choose the source files when send to server or the destination folder when receive from server.\\n-n   Do not Open the file dialog.\\n\\nExample:\\n${pluginConfig.aliasSendCommand} testfile.txt   This will send the file in your localhost pwd to the remoteserver.\\n\\nInject success! Enjoy yourself!\\n\\n'`
+    let helpCMD = `printf '\\nUsage:\\n${pluginConfig.aliasSendCommand} [localhost:]file1 ... [-d [remoteserver:]path]\\n${pluginConfig.aliasReceiveCommand} [remoteserver:]file1 ... [-d [localhost:]path]\\n\\nOptions:\\n-d   The destination in localhost or remoteserver.It can be absolute path or relative to your defaultSendPath/defaultReceivePath.\\n-i   Open the file dialog to choose the source files when send to server or the destination folder when receive from server.\\n-n   Do not Open the file dialog.\\n\\nExample:\\n${pluginConfig.aliasSendCommand} -n testfile.txt   This will send the file in your localhost defaultSendPath to the remoteserver.\\n${pluginConfig.aliasReceiveCommand} -n testfile.txt   This will receive the file in the current path of your remote server to the defaultReceivePath of your local server.\\n\\nInject success! Enjoy yourself!\\n\\n'`
     executeCommand(`${pluginConfig.injectFuncName}(){ local s="";for i in $@; do s="$s '$i'"; done;s="$s '-w' '$(pwd)'";echo $s; } && alias ${pluginConfig.aliasSendCommand}="${pluginConfig.injectFuncName} ${pluginConfig.sendCommand} ${pluginConfig.defaultInteraction ? '-i' : '-n'}" && alias ${pluginConfig.aliasReceiveCommand}="${pluginConfig.injectFuncName} ${pluginConfig.receiveCommand} ${pluginConfig.defaultInteraction ? '-i' : '-n'}" && ${helpCMD}`, termID)
 }
 
@@ -215,7 +216,7 @@ const handleSend = (termID, arg) => {
         notify("Choose files to send")
         window.rpc.emit("scp-send-select-file", {
             options: {
-                defaultPath: pluginConfig.defaultSelectPath,
+                defaultPath: pluginConfig.defaultSendPath,
                 title: "请选择上传的文件",
                 buttonLabel: "确定",
                 filters: [],
@@ -231,7 +232,7 @@ const handleSend = (termID, arg) => {
         source.forEach((value, index, arr) => {
             value = value.trim("'")
             if (value[0] != "/") {
-                arr[index] = "'" + path.join(pluginConfig.defaultSelectPath, value) + "'"
+                arr[index] = "'" + path.join(pluginConfig.defaultSendPath, value) + "'"
             }
         })
         debugLogger("source  ", source)
@@ -272,7 +273,7 @@ const handleReceive = (termID, arg) => {
         notify("Choose path to receive")
         window.rpc.emit("scp-receive-select-path", {
             options: {
-                defaultPath: pluginConfig.defaultSelectPath,
+                defaultPath: pluginConfig.defaultReceivePath,
                 title: "请选择保存路径",
                 buttonLabel: "确定",
                 filters: [],
@@ -286,9 +287,9 @@ const handleReceive = (termID, arg) => {
         })
     } else {
         if (destination == "") {
-            destination = "'" + pluginConfig.defaultSelectPath + "'"
+            destination = "'" + pluginConfig.defaultReceivePath + "'"
         } else if (destination.trim("'")[0] != "/") {
-            destination = "'" + path.join(pluginConfig.defaultSelectPath, destination.trim("'")) + "'"
+            destination = "'" + path.join(pluginConfig.defaultReceivePath, destination.trim("'")) + "'"
         }
         debugLogger("source  ", source)
         debugLogger("destination  ", destination)
