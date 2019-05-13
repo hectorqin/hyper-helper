@@ -28,18 +28,16 @@ if (!Array.isArray) {
     };
 }
 
-if (!String.prototype.trim) {
-    String.prototype.trim = function (char, type) {
-        if (char) {
-            if (type == 'left') {
-                return this.replace(new RegExp('^\\' + char + '+', 'g'), '');
-            } else if (type == 'right') {
-                return this.replace(new RegExp('\\' + char + '+$', 'g'), '');
-            }
-            return this.replace(new RegExp('^\\' + char + '+|\\' + char + '+$', 'g'), '');
+String.prototype.trimString = function (char, type) {
+    if (char) {
+        if (type == 'left') {
+            return this.replace(new RegExp('^\\' + char + '+', 'g'), '');
+        } else if (type == 'right') {
+            return this.replace(new RegExp('\\' + char + '+$', 'g'), '');
         }
-        return this.replace(/^\s+|\s+$/g, '');
+        return this.replace(new RegExp('^\\' + char + '+|\\' + char + '+$', 'g'), '');
     }
+    return this.replace(/^\s+|\s+$/g, '');
 }
 
 let _app
@@ -130,7 +128,7 @@ const matchPTYData = (action) => {
         }
     } else {
         // match disconnect
-        let data = action.data.trim("\n")
+        let data = action.data.trimString("\n")
         let result = pluginConfig.matchSSHDisconnect(data, debugLogger)
         debugLogger("matchSSHDisconnect", result)
         if (result) {
@@ -145,7 +143,7 @@ const matchPTYData = (action) => {
         let lines = data.split("\n", 3)
         debugLogger("match lines", lines)
         lines.every((line) => {
-            line = line.trim()
+            line = line.trimString()
             debugLogger("match line", line)
             sendResult = sendRegex.exec(line)
             debugLogger("sendResult", sendResult)
@@ -171,7 +169,7 @@ const injectCommandToServer = (termID) => {
 }
 
 const parseArgs = (arg) => {
-    let args = arg.trim().split("' '")
+    let args = arg.trimString().split("' '")
     let maxIndex = args.length - 1
     args.forEach((value, index, arr) => {
         if (index == 0) {
@@ -208,8 +206,8 @@ const handleSend = (termID, arg) => {
     debugLogger(source, destination, serverPWD)
     if (destination == "") {
         destination = serverPWD
-    } else if (destination.trim("'")[0] != "/") {
-        destination = "'" + path.join(serverPWD.trim("'"), destination.trim("'")) + "'"
+    } else if (destination.trimString("'")[0] != "/") {
+        destination = "'" + path.join(serverPWD.trimString("'"), destination.trimString("'")) + "'"
     }
     debugLogger("isInteractive", isInteractive)
     if (isInteractive) {
@@ -230,7 +228,7 @@ const handleSend = (termID, arg) => {
         })
     } else {
         source.forEach((value, index, arr) => {
-            value = value.trim("'")
+            value = value.trimString("'")
             if (value[0] != "/") {
                 arr[index] = "'" + path.join(pluginConfig.defaultSendPath, value) + "'"
             }
@@ -263,9 +261,11 @@ const handleReceive = (termID, arg) => {
     });
     debugLogger(source, destination, serverPWD)
     source.forEach((value, index, arr) => {
-        value = value.trim("'")
+        debugLogger(value)
+        value = value.trimString("'")
+        debugLogger(value)
         if (value[0] != "/") {
-            arr[index] = "'" + path.join(serverPWD.trim("'"), value) + "'"
+            arr[index] = "'" + path.join(serverPWD.trimString("'"), value) + "'"
         }
     })
     debugLogger("isInteractive", isInteractive)
@@ -288,8 +288,8 @@ const handleReceive = (termID, arg) => {
     } else {
         if (destination == "") {
             destination = "'" + pluginConfig.defaultReceivePath + "'"
-        } else if (destination.trim("'")[0] != "/") {
-            destination = "'" + path.join(pluginConfig.defaultReceivePath, destination.trim("'")) + "'"
+        } else if (destination.trimString("'")[0] != "/") {
+            destination = "'" + path.join(pluginConfig.defaultReceivePath, destination.trimString("'")) + "'"
         }
         debugLogger("source  ", source)
         debugLogger("destination  ", destination)
@@ -364,6 +364,9 @@ exports.onWindow = (win) => {
     }) => {
         win.sessions.get(uid).write(command);
     });
+    win.rpc.on('hyper-helper-notify', ({title, body, details}) => {
+        notify(title, body, details)
+    });
     win.rpc.on("scp-send-select-file", ({
         options,
         args
@@ -372,14 +375,14 @@ exports.onWindow = (win) => {
         console.log(args)
         const dialog = require('electron').dialog
         const notify = (title, body, details) => {
-            win.rpc.emit("statusline-notify", {
+            win.rpc.emit("hyper-helper-notify", {
                 title,
                 body,
                 details
             })
         }
 
-        dialog.showOpenDialog(options, function (files) {
+        dialog.showOpenDialog(win, options, function (files) {
             console.log(files)
             if (!files || !files.length) {
                 notify("User canceled")
@@ -400,14 +403,14 @@ exports.onWindow = (win) => {
         console.log(args)
         const dialog = require('electron').dialog
         const notify = (title, body, details) => {
-            win.rpc.emit("statusline-notify", {
+            win.rpc.emit("hyper-helper-notify", {
                 title,
                 body,
                 details
             })
         }
 
-        dialog.showOpenDialog(options, function (files) {
+        dialog.showOpenDialog(win, options, function (files) {
             console.log(files)
             if (!files || !files.length) {
                 notify("User canceled")
