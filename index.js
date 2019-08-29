@@ -62,7 +62,8 @@ let pluginConfig = {
         return false;
     },
     matchSSHDisconnect: (data) => {
-        return data.match("Connection to [^ ]+ closed");
+        return /Connection to [^ ]+ closed/.exec(data)
+        // return data.match("Connection to [^ ]+ closed");
     }
 }
 
