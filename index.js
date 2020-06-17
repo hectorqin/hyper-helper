@@ -58,6 +58,7 @@ let pluginConfig = {
     defaultInteraction: true,
     debugLog: true,
     maxMatchLength: 500,
+    maxMatchLine: 30,
     matchSSHConnect: (data) => {
         return false;
     },
@@ -102,6 +103,9 @@ const matchPTYData = (action) => {
     if (!pluginConfig.enableSCPHelper) return
     // 字符太长，就不匹配了，影响性能
     if (action.data.length > pluginConfig.maxMatchLength) return
+    if (action.data.split("\n", pluginConfig.maxMatchLine).length >= pluginConfig.maxMatchLine) {
+        return;
+    }
     if (!SSHConnectSessions[action.uid]) {
         let result = pluginConfig.matchSSHConnect(action.data, debugLogger)
         if (result && Array.isArray(result)) {
