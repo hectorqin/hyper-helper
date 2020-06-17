@@ -383,7 +383,7 @@ exports.onWindow = (win) => {
             })
         }
 
-        dialog.showOpenDialog(win, options, function (files) {
+        const sendFile = function (files) {
             console.log(files)
             if (!files || !files.length) {
                 notify("User canceled")
@@ -394,6 +394,16 @@ exports.onWindow = (win) => {
                 source.push("'" + value + "'")
             });
             scpToServer(args.server, source, args.destination)
+        };
+
+        let res = dialog.showOpenDialog(win, options, sendFile)
+        Promise.resolve(res).then(result => {
+            console.log(result);
+            if (result) {
+                sendFile(result.filePaths || false);
+            }
+        }).catch(error => {
+            console.log(error);
         })
     })
     win.rpc.on("scp-receive-select-path", ({
@@ -411,13 +421,23 @@ exports.onWindow = (win) => {
             })
         }
 
-        dialog.showOpenDialog(win, options, function (files) {
+        const receiveFile = function (files) {
             console.log(files)
             if (!files || !files.length) {
                 notify("User canceled")
                 return
             }
             scpToLocal(args.server, args.source, "'" + files[0] + "'")
+        };
+
+        let res = dialog.showOpenDialog(win, options, receiveFile)
+        Promise.resolve(res).then(result => {
+            console.log(result);
+            if (result) {
+                receiveFile(result.filePaths || false);
+            }
+        }).catch(error => {
+            console.log(error);
         })
     })
     _win = win
